@@ -3,7 +3,7 @@ module github.com/keloran/cobden-servers
 go 1.20
 
 require (
-	github.com/bugfixes/go-bugfixes v0.9.2
+	github.com/bugfixes/go-bugfixes v0.9.4
 	github.com/caarlos0/env/v8 v8.0.0
 	github.com/eclipse/paho.mqtt.golang v1.4.2
 	github.com/influxdata/influxdb-client-go/v2 v2.12.3
