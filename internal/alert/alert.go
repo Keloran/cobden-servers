@@ -19,7 +19,7 @@ func NewAlert(ctx context.Context, cfg config.Config) *Alert {
 	}
 }
 
-func (a *Alert) SendAlert(name string, temp float64, high bool) error {
+func (a *Alert) SendAlert(name string, newTemp, oldTemp float64, high bool) error {
 	var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {}
 	var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {}
 	var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {}
@@ -37,9 +37,9 @@ func (a *Alert) SendAlert(name string, temp float64, high bool) error {
 		return token.Error()
 	}
 
-	text := fmt.Sprintf(`{"text": "%s dropped %f", "rainbow": "true", "duration": 10}`, name, temp)
+	text := fmt.Sprintf(`{"text": "%s %.2f < %.2f", "rainbow": "true", "duration": 10}`, name, oldTemp, newTemp)
 	if high {
-		text = fmt.Sprintf(`{"text": "%s %f", "rainbow": "true", "duration": 30, "color": "red"}`, name, temp)
+		text = fmt.Sprintf(`{"text": "%s %.2f > %.2f", "rainbow": "true", "duration": 30, "color": "red"}`, name, oldTemp, newTemp)
 	}
 
 	token := client.Publish(a.Config.MQTT.Topic, 0, false, text)
