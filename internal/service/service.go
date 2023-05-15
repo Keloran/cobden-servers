@@ -55,8 +55,15 @@ func startService(cfg *config.Config, errChan chan error) {
 
 			if n > server.LastTemp && n > (tempIncrease*server.LastTemp) {
 				a := alert.NewAlert(context.Background(), *cfg)
-				if err := a.SendAlert(server.Name, n); err != nil {
-					errChan <- logs.Errorf("send alert: %v", err)
+				if err := a.SendAlert(server.Name, n, true); err != nil {
+					errChan <- logs.Errorf("send high alert: %v", err)
+				}
+			}
+
+			if n < server.LastTemp && n < (tempIncrease*server.LastTemp) {
+				a := alert.NewAlert(context.Background(), *cfg)
+				if err := a.SendAlert(server.Name, n, false); err != nil {
+					errChan <- logs.Errorf("send low alert: %v", err)
 				}
 			}
 
