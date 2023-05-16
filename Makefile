@@ -24,6 +24,9 @@ publish-images:
 .PHONY: build
 build: build-images
 
+.PHONY: build-publish
+build-publish: build publish-images
+
 .PHONY: deploy
 deploy:
 	kubectl set image deployment/${SERVICE_NAME} ${SERVICE_NAME}=containers.chewed-k8s.net/${NAMESPACE}/${SERVICE_NAME}:${GIT_COMMIT} --namespace=${NAMESPACE}
