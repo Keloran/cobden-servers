@@ -44,7 +44,7 @@ func (a *Alert) SendAlert(name string, newTemp, oldTemp float64, high bool) erro
 		color = "#880808"
 	}
 
-	token := client.Publish(a.Config.MQTT.Topic, 0, false, fmt.Sprintf(`{"text": "%s %.2f", "color": "%s", "duration": %d}`, name, nt, color, a.Config.MQTT.AlertTime))
+	token := client.Publish(a.Config.MQTT.Topic, 0, false, fmt.Sprintf(`{"text": "%s (%.2f) %.2f", "color": "%s", "duration": %d}`, name, newTemp, nt, color, a.Config.MQTT.AlertTime))
 	token.Wait()
 	if token.Error() != nil {
 		return token.Error()
