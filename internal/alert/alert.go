@@ -37,12 +37,14 @@ func (a *Alert) SendAlert(name string, newTemp, oldTemp float64, high bool) erro
 		return token.Error()
 	}
 
-	text := fmt.Sprintf(`{"text": "%s %.2f < %.2f", "rainbow": "true", "duration": 10}`, name, oldTemp, newTemp)
+	nt := newTemp - oldTemp
+	color := "#00FFFF"
 	if high {
-		text = fmt.Sprintf(`{"text": "%s %.2f > %.2f", "rainbow": "true", "duration": 30, "color": "red"}`, name, oldTemp, newTemp)
+		nt = oldTemp - newTemp
+		color = "#880808"
 	}
 
-	token := client.Publish(a.Config.MQTT.Topic, 0, false, text)
+	token := client.Publish(a.Config.MQTT.Topic, 0, false, fmt.Sprintf(`{"text": "%s %.2f", "color": "%s", "duration": 10}`, name, nt, color))
 	token.Wait()
 	if token.Error() != nil {
 		return token.Error()
