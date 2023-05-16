@@ -29,7 +29,7 @@ build-publish: build publish-images
 
 .PHONY: deploy
 deploy:
-	kubectl set image deployment/${SERVICE_NAME} ${SERVICE_NAME}=containers.chewed-k8s.net/${NAMESPACE}/${SERVICE_NAME}:${GIT_COMMIT} --namespace=${NAMESPACE}
+	curl -X POST 'http://cob.cobden.net:9000/api/webhooks/e10ea4a7-f3c4-416e-af0d-9ae7dc82e7fb'
 
 .PHONY: deploy-latest
 deploy-latest:
