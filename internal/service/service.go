@@ -18,9 +18,18 @@ type Service struct {
 func (s *Service) Start() error {
 	errChan := make(chan error)
 
+	errCount := 0
+	errOrig := errChan
 	go startService(s.Config, errChan)
+	if errChan != nil {
+		errCount = errCount + 1
+		errChan = nil
+	}
+	if errCount > s.Config.Local.ErrorLimit {
+		return logs.Errorf("error count: %d, err: %v", errCount, errOrig)
+	}
 
-	return <-errChan
+	return nil
 }
 
 func startService(cfg *config.Config, errChan chan error) {
