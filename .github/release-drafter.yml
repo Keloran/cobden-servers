@@ -66,4 +66,4 @@ version-resolver:
 exclude-labels:
   - 'skip-changelog'
 
-change-template: '- [#$NUMBER](https://github.com/keloran/cobden-servers/pull/$NUMBER) $TITLE (@$AUTHOR)'
+change-template: '- [#$NUMBER](https://github.com/Keloran/cobden-servers/pull/$NUMBER) $TITLE (@$AUTHOR)'
