@@ -14,13 +14,16 @@ type Temp struct {
 }
 
 type Server struct {
-	Name     string
-	FullName string
-	LastTemp float64
-	Sensor   string
 	config.Config
 	context.Context
+
+	Name        string
+	FullName    string
+	LastTemp    float64
+	Sensor      string
 	FirstResult bool
+	Chip        string
+	Data        interface{}
 }
 
 func NewTempService(ctx context.Context, cfg config.Config) *Temp {
@@ -62,13 +65,16 @@ union(tables: [sensors_query, ipmi_query])
 		shortName = parts[0]
 
 		s := &Server{
+			Config:  t.Config,
+			Context: t.Context,
+
 			Name:        shortName,
 			FullName:    result.Record().ValueByKey("host").(string),
 			LastTemp:    result.Record().ValueByKey("_value").(float64),
 			Sensor:      result.Record().ValueByKey("_measurement").(string),
-			Config:      t.Config,
-			Context:     t.Context,
+			Chip:        result.Record().ValueByKey("chip").(string),
 			FirstResult: true,
+			Data:        result,
 		}
 		r = append(r, s)
 	}
@@ -76,13 +82,14 @@ union(tables: [sensors_query, ipmi_query])
 	return r, nil
 }
 
-func (s *Server) GetTemp() (float64, error) {
+func (s *Server) GetTemp(chip string) (float64, error) {
 	q := fmt.Sprintf(`from(bucket: "sensors")
   |> range(start: -10m)
   |> filter(fn: (r) => r["_measurement"] == "sensors")
   |> filter(fn: (r) => r["_field"] == "temp_input")
   |> filter(fn: (r) => r["host"] == "%s")
-  |> toFloat()`, s.FullName)
+  |> filter(fn: (r) => r["chip"] == "%s")
+  |> toFloat()`, s.FullName, chip)
 
 	if s.Sensor == "ipmi_sensor" {
 		q = fmt.Sprintf(`from(bucket: "sensors")

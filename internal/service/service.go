@@ -19,14 +19,21 @@ func (s *Service) Start() error {
 	errChan := make(chan error)
 
 	errCount := 0
-	go startService(s.Config, errChan)
-
-	errOrig := <-errChan
-	if errOrig != nil {
-		errCount = errCount + 1
+	if s.Config.Development {
+		startService(s.Config, errChan)
+	} else {
+		go startService(s.Config, errChan)
 	}
-	if errCount > s.Config.Local.ErrorLimit {
-		return logs.Errorf("error count: %d, err: %v", errCount, errOrig)
+
+	select {
+	case err := <-errChan:
+		if err != nil {
+			errCount = errCount + 1
+
+			if errCount > s.Config.Local.ErrorLimit {
+				return logs.Errorf("error count: %d, err: %v", errCount, err)
+			}
+		}
 	}
 
 	return nil
@@ -44,17 +51,9 @@ func startService(cfg *config.Config, errChan chan error) {
 	s = temp.CleanServers(s)
 	iter := 0
 
-	tempIncrease, err := strconv.ParseFloat(cfg.Local.TempIncrease, 64)
+	tempChangePercentage, err := strconv.ParseFloat(cfg.Local.TempChangePercentage, 64)
 	if err != nil {
 		errChan <- logs.Errorf("parse temp increase: %v", err)
-	}
-
-	if cfg.Development {
-		a := alert.NewAlert(context.Background(), *cfg)
-		if err := a.SendAlert("test", 99, 89, true); err != nil {
-			errChan <- logs.Errorf("send low alert: %v", err)
-		}
-		return
 	}
 
 	for {
@@ -64,25 +63,29 @@ func startService(cfg *config.Config, errChan chan error) {
 				server.FirstResult = false
 				continue
 			}
+			oldTemp := server.LastTemp
 
-			newTemp, err := server.GetTemp()
+			newTemp, err := server.GetTemp(server.Chip)
 			if err != nil {
 				errChan <- logs.Errorf("get %s temp: %v", server.Name, err)
 			}
 
-			logs.Logf("%s: n %.2f, o %.2f", server.Name, newTemp, server.LastTemp)
+			changePercentage := (oldTemp - newTemp) / oldTemp * 100
 
-			if newTemp > server.LastTemp && newTemp > (tempIncrease*server.LastTemp) {
-				a := alert.NewAlert(context.Background(), *cfg)
-				if err := a.SendAlert(server.Name, newTemp, server.LastTemp, true); err != nil {
-					errChan <- logs.Errorf("send high alert: %v", err)
+			logs.Logf("%s: n %.2f, o %.2f, diff %.2f, c %.2f", server.Name, newTemp, oldTemp, newTemp-oldTemp, changePercentage)
+
+			a := alert.NewAlert(context.Background(), *cfg)
+			if newTemp > oldTemp {
+				if changePercentage > tempChangePercentage {
+					if err := a.SendAlert(server.Name, newTemp, oldTemp, true); err != nil {
+						errChan <- logs.Errorf("send high alert: %v", err)
+					}
 				}
-			}
-
-			if newTemp < server.LastTemp && newTemp < (tempIncrease*server.LastTemp) {
-				a := alert.NewAlert(context.Background(), *cfg)
-				if err := a.SendAlert(server.Name, newTemp, server.LastTemp, false); err != nil {
-					errChan <- logs.Errorf("send low alert: %v", err)
+			} else if newTemp < oldTemp {
+				if changePercentage > -tempChangePercentage {
+					if err := a.SendAlert(server.Name, newTemp, oldTemp, false); err != nil {
+						errChan <- logs.Errorf("send low alert: %v", err)
+					}
 				}
 			}
 
