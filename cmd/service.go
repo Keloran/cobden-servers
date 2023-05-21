@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/keloran/cobden-servers/internal/config"
 	"github.com/keloran/cobden-servers/internal/service"

@@ -3,6 +3,7 @@ package alert
 import (
 	"context"
 	"fmt"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/keloran/cobden-servers/internal/config"
 )

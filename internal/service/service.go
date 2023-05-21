@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"strconv"
+	"time"
+
 	"github.com/bugfixes/go-bugfixes/logs"
 	"github.com/keloran/cobden-servers/internal/alert"
 	"github.com/keloran/cobden-servers/internal/config"
 	"github.com/keloran/cobden-servers/internal/temp"
-	"strconv"
-	"time"
 )
 
 type Service struct {
@@ -25,14 +26,11 @@ func (s *Service) Start() error {
 		go startService(s.Config, errChan)
 	}
 
-	select {
-	case err := <-errChan:
-		if err != nil {
-			errCount = errCount + 1
+	if err := <-errChan; err != nil {
+		errCount++
 
-			if errCount > s.Config.Local.ErrorLimit {
-				return logs.Errorf("error count: %d, err: %v", errCount, err)
-			}
+		if errCount > s.Config.Local.ErrorLimit {
+			return logs.Errorf("error count: %d, err: %v", errCount, err)
 		}
 	}
 
@@ -40,8 +38,7 @@ func (s *Service) Start() error {
 }
 
 func startService(cfg *config.Config, errChan chan error) {
-	var sleepTime time.Duration
-	sleepTime = time.Duration(cfg.Local.SleepTime) * time.Second
+	sleepTime := time.Duration(cfg.Local.SleepTime) * time.Second
 
 	t := temp.NewTempService(context.Background(), *cfg)
 	s, err := t.GetServers()
@@ -49,13 +46,16 @@ func startService(cfg *config.Config, errChan chan error) {
 		errChan <- logs.Errorf("get servers: %v", err)
 	}
 	s = temp.CleanServers(s)
-	iter := 0
 
 	tempChangePercentage, err := strconv.ParseFloat(cfg.Local.TempChangePercentage, 64)
 	if err != nil {
 		errChan <- logs.Errorf("parse temp increase: %v", err)
 	}
 
+	iterate(s, errChan, sleepTime, cfg, tempChangePercentage)
+}
+
+func iterate(s []*temp.Server, errChan chan error, sleepTime time.Duration, cfg *config.Config, tempChangePercentage float64) {
 	for {
 		for _, server := range s {
 			// skip first result
@@ -71,30 +71,36 @@ func startService(cfg *config.Config, errChan chan error) {
 			}
 
 			changePercentage := (oldTemp - newTemp) / oldTemp * 100
-
-			logs.Logf("%s: n %.2f, o %.2f, diff %.2f, c %.2f", server.Name, newTemp, oldTemp, newTemp-oldTemp, changePercentage)
-
-			a := alert.NewAlert(context.Background(), *cfg)
-			if newTemp > oldTemp {
-				if changePercentage > tempChangePercentage {
-					if err := a.SendAlert(server.Name, newTemp, oldTemp, true); err != nil {
-						errChan <- logs.Errorf("send high alert: %v", err)
-					}
-				}
-			} else if newTemp < oldTemp {
-				if changePercentage > -tempChangePercentage {
-					if err := a.SendAlert(server.Name, newTemp, oldTemp, false); err != nil {
-						errChan <- logs.Errorf("send low alert: %v", err)
-					}
+			if newTemp != oldTemp {
+				if err := tempChange(newTemp, oldTemp, changePercentage, tempChangePercentage, server.Name, cfg); err != nil {
+					errChan <- logs.Errorf("temp change: %v", err)
 				}
 			}
 
 			server.LastTemp = newTemp
 		}
 
-		iter = iter + 1
-		logs.Infof("\n---- iter: %d ----\n", iter)
-
 		time.Sleep(sleepTime)
 	}
+}
+
+func tempChange(newTemp, oldTemp, changePercentage, tempChangePercentage float64, serverName string, cfg *config.Config) error {
+	a := alert.NewAlert(context.Background(), *cfg)
+	if changePercentage < 0 {
+		if changePercentage < (tempChangePercentage * -1) {
+			logs.Logf("%s: got cooler by %0.2f, %0.2f%%", serverName, newTemp-oldTemp, changePercentage)
+			if err := a.SendAlert(serverName, newTemp, oldTemp, false); err != nil {
+				return logs.Errorf("send low alert: %v", err)
+			}
+		}
+	} else {
+		if changePercentage > tempChangePercentage {
+			logs.Logf("%s: got warmer by %0.2f, %0.2f%%", serverName, oldTemp-newTemp, changePercentage)
+			if err := a.SendAlert(serverName, newTemp, oldTemp, true); err != nil {
+				return logs.Errorf("send high alert: %v", err)
+			}
+		}
+	}
+
+	return nil
 }
