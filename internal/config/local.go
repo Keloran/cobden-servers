@@ -10,6 +10,7 @@ type Local struct {
 	SleepTime            int    `env:"SLEEP_TIME" envDefault:"5" json:"sleep_time,omitempty"`
 	TempChangePercentage string `env:"TEMP_CHANGE_PERCENTAGE" envDefault:"10" json:"temp_change_percentage,omitempty"`
 	ErrorLimit           int    `env:"ERROR_LIMIT" envDefault:"5" json:"error_limit,omitempty"`
+	TimeBetweenAlerts    int    `env:"TIME_BETWEEN_ALERTS" envDefault:"5" json:"time_between_alerts,omitempty"`
 }
 
 func BuildLocal(cfg *Config) error {

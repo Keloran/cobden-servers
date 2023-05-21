@@ -72,7 +72,7 @@ func iterate(s []*temp.Server, errChan chan error, sleepTime time.Duration, cfg 
 
 			changePercentage := (oldTemp - newTemp) / oldTemp * 100
 			if newTemp != oldTemp {
-				if err := tempChange(newTemp, oldTemp, changePercentage, tempChangePercentage, server.Name, cfg); err != nil {
+				if err := tempChange(newTemp, changePercentage, tempChangePercentage, cfg, server); err != nil {
 					errChan <- logs.Errorf("temp change: %v", err)
 				}
 			}
@@ -84,21 +84,29 @@ func iterate(s []*temp.Server, errChan chan error, sleepTime time.Duration, cfg 
 	}
 }
 
-func tempChange(newTemp, oldTemp, changePercentage, tempChangePercentage float64, serverName string, cfg *config.Config) error {
+func tempChange(newTemp, changePercentage, tempChangePercentage float64, cfg *config.Config, server *temp.Server) error {
+	if server.LastReportTime != (time.Time{}) {
+		if server.LastReportTime.Add(time.Duration(time.Duration(cfg.Local.TimeBetweenAlerts) * time.Minute)).After(time.Now()) {
+			return nil
+		}
+	}
+
 	a := alert.NewAlert(context.Background(), *cfg)
 	if changePercentage < 0 {
 		if changePercentage < (tempChangePercentage * -1) {
-			logs.Logf("%s: got cooler by %0.2f, %0.2f%%", serverName, newTemp-oldTemp, changePercentage)
-			if err := a.SendAlert(serverName, newTemp, oldTemp, false); err != nil {
+			logs.Logf("%s: got cooler by %0.2f, %0.2f%%", server.Name, newTemp-server.LastTemp, changePercentage)
+			if err := a.SendAlert(server.Name, newTemp, server.LastTemp, false); err != nil {
 				return logs.Errorf("send low alert: %v", err)
 			}
+			server.LastReportTime = time.Now()
 		}
 	} else {
 		if changePercentage > tempChangePercentage {
-			logs.Logf("%s: got warmer by %0.2f, %0.2f%%", serverName, oldTemp-newTemp, changePercentage)
-			if err := a.SendAlert(serverName, newTemp, oldTemp, true); err != nil {
+			logs.Logf("%s: got warmer by %0.2f, %0.2f%%", server.Name, server.LastTemp-newTemp, changePercentage)
+			if err := a.SendAlert(server.Name, newTemp, server.LastTemp, true); err != nil {
 				return logs.Errorf("send high alert: %v", err)
 			}
+			server.LastReportTime = time.Now()
 		}
 	}
 

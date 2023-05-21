@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/keloran/cobden-servers/internal/config"
@@ -18,13 +19,14 @@ type Server struct {
 	config.Config
 	context.Context
 
-	Name        string
-	FullName    string
-	LastTemp    float64
-	Sensor      string
-	FirstResult bool
-	Chip        string
-	Data        interface{}
+	Name           string
+	FullName       string
+	LastTemp       float64
+	Sensor         string
+	FirstResult    bool
+	Chip           string
+	LastReportTime time.Time
+	Data           interface{}
 }
 
 func NewTempService(ctx context.Context, cfg config.Config) *Temp {
