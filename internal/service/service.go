@@ -86,7 +86,7 @@ func iterate(s []*temp.Server, errChan chan error, sleepTime time.Duration, cfg 
 
 func tempChange(newTemp, changePercentage, tempChangePercentage float64, cfg *config.Config, server *temp.Server) error {
 	if server.LastReportTime != (time.Time{}) {
-		if server.LastReportTime.Add(time.Duration(time.Duration(cfg.Local.TimeBetweenAlerts) * time.Minute)).After(time.Now()) {
+		if server.LastReportTime.Add(time.Duration(cfg.Local.TimeBetweenAlerts) * time.Minute).After(time.Now()) {
 			return nil
 		}
 	}
